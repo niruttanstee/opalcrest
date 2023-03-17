@@ -53,7 +53,7 @@ class HouseSort(commands.Cog):
 
         # let user know to check their dm
         embed = disnake.Embed(
-            description="The book appears in your dm. **(Please check your dms)**",
+            description="**(Please check your dms)**",
             colour=disnake.Colour.blue()
         )
         await inter.response.send_message(embed=embed, ephemeral=True)
