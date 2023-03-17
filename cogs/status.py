@@ -10,15 +10,13 @@ class Status(commands.Cog):
     def __init__(self, bot):
         self.bot: commands.Bot = bot
 
-    @commands.slash_command(description="Get response status from Quarks to you")
+    @commands.slash_command(description="Get response status from Opal Crest to you")
     @commands.default_member_permissions(manage_channels=True)
     async def status(self, inter: disnake.ApplicationCommandInteraction):
         """
-        Check latency response time from the bot to the member's server.
-        Sends response status to member.
+        Sends a status embed message after fetching the latency of the bot to the server.
 
-        Args:
-            inter (disnake.ApplicationContext): Interaction object.
+        :param inter: the interaction object.
         """
         latency = round(self.bot.latency * 1000, 0)
         latency = str(latency).split('.')[0]

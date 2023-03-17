@@ -9,7 +9,7 @@ async def db_client():
        client: MongoClient
     """
     # Import token.
-    with open('./tokens.json', 'r') as f:
+    with open('tokens.json', 'r') as f:
         tokens = json.load(f)
         
     uri = tokens['ATLAS_URI']
