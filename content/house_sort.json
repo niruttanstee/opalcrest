@@ -1,9 +1,27 @@
 {
-  "button": "**Welcome to the Opalcrest Discord Server!**\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n**What is Opalcrest?**\n\nOpalcrest is a safe and cosy community on the internet made by <@263469012724219904> and <@241126463904940032>.\n\nThe server is based on an interactive magical fantasy world where you can participate in entertaining events, communicate with friendly people and play as a unique character. In this world, you are a student of the school called Opencrest.\n\n> *To continue, please head over to Chapter 1.*\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n**Chapter 1**\n\nUpon arriving at the school grounds, the groundskeeper ushered you and your fellow students to an enormous empty lantern-lit hall.\n\nIn a single file, you stop below a limestone archway. You hear an overbearing voice saying, \"Those uniforms look a bit dull. Best if we get you all sorted in a house-ay?\". Many curious whispers muttered around you.\n\nAs you shuffle to the front, you see a wrinkled man with long ashen hair holding a blued glowing book. Once it's your turn, he smiles and asks you to **hold onto the book.**\n\n> *Press the button \"Hold onto the book\"*",
+  "button": "**Welcome to the Opalcrest Discord Server!**\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n**What is Opalcrest?**\n\nOpalcrest is a safe and cosy community on the internet made by <@263469012724219904> and <@241126463904940032>.\n\nThe server is based on an interactive magical fantasy world where you can participate in entertaining events, communicate with friendly people and play as a unique character. In this world, you are a student of the school called Opencrest.\n\n> *Please verify by completing Chapter 1.*\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n**Chapter 1**\n\nUpon arriving at the school grounds, the groundskeeper ushered you and your fellow students to an enormous empty lantern-lit hall.\n\nIn a single file, you stop below a limestone archway. You hear an overbearing voice saying, \"Those uniforms look a bit dull. Best if we get you all sorted in a house-ay?\". Many curious whispers muttered around you.\n\nAs you shuffle to the front, you see a wrinkled man with long ashen hair holding a blued glowing book. Once it's your turn, he smiles and asks you to **hold onto the book.**\n\n> *Press the button \"Hold onto the book\"*.",
   "dm_interaction": {
-    "introduction": {
       "title": "The blued book glows intensely",
-      "desc": "You close your eyes. You feel a warm yet soft breeze airbrushing your eyebrows.\n\nMoments later, you hear someone talk. The voice did not sound like a human but rather something celestial. \n\n\"So you've come to be sorted into a house. Suppose I'll ask you a few questions. Think deeply now. Your answer must be a truthful reflection of yourself. Are you ready?.\" the celestial being said calmly and asked.\n\n> Press the button below to respond"
-    }
+      "desc": "You close your eyes. You feel a warm yet soft breeze airbrushing your eyebrows.\n\nMoments later, you hear someone talk. The voice did not sound like a human but rather something celestial. \n\n\"So you've come to be sorted into a house. Suppose I'll ask you a few questions. Think deeply now. Your answer must be a truthful reflection of yourself. Are you ready?.\" the celestial being said calmly and asked.\n\n> Press the button below to respond."
+  },
+  "question_1": {
+    "title": "q1",
+    "desc": "q1"
+  },
+    "question_2": {
+    "title": "q2",
+    "desc": "q2"
+  },
+    "question_3": {
+    "title": "q3",
+    "desc": "q3"
+  },
+    "question_4": {
+    "title": "q4",
+    "desc": "q4"
+  },
+  "timeout_error_message": {
+    "title": "The blued book glow fades",
+    "desc": "You took your hand off the book too early.\n\n>>> Please try again by going to **Chapter 1** at: <#861066893044351016>\n**ERR:** Session has timed out."
   }
 }

@@ -11,6 +11,8 @@ class HouseSort(commands.Cog):
 
     def __init__(self, bot):
         self.bot: commands.Bot = bot
+        self.blue = disnake.Colour.blue()
+        self.dark_blue = disnake.Colour.dark_blue()
 
         with open('./content/house_sort.json', 'r') as f:
             self.content = json.load(f)
@@ -53,7 +55,7 @@ class HouseSort(commands.Cog):
 
         # let user know to check their dm
         embed = disnake.Embed(
-            description="**(Please check your dms)**",
+            description="Continue your story within your DMs.",
             colour=disnake.Colour.blue()
         )
         await inter.response.send_message(embed=embed, ephemeral=True)
@@ -68,22 +70,17 @@ class HouseSort(commands.Cog):
         :param user: the user object.
         :return weights: the weighted house dictionary.
         """
-        # send the introduction dm embed, request member to react to embed to begin
-        # send introduction dm embed
-        title = self.content['dm_interaction']['introduction']['title']
-        description = self.content['dm_interaction']['introduction']['desc']
-        embed = disnake.Embed(
-            title=title,
-            description=description,
-            colour=disnake.Colour.blue()
-        )
+        # introduction dm embed
+        title = self.content['dm_interaction']['title']
+        description = self.content['dm_interaction']['desc']
+        embed = await self.default_embed(title, description, self.blue)
         embed.set_image(url="https://disnake.dev/assets/disnake-thin-banner.png")
         components = [
             disnake.ui.Button(label='Respond: "I am ready"',
                               style=disnake.ButtonStyle.primary,
                               custom_id="accept_introduction")
         ]
-        await user.send(embed=embed, components=components)
+        message = await user.send(embed=embed, components=components)
 
         def check_dm_intro(x: disnake.MessageInteraction):
             return x.user == user and x.component.custom_id == "accept_introduction"
@@ -91,17 +88,94 @@ class HouseSort(commands.Cog):
         try:
             x = await self.bot.wait_for('button_click', timeout=60, check=check_dm_intro)
         except asyncio.TimeoutError:
-            await user.send("Timed out")
-            return
+            return await self.timeout_error_message(user, message)
 
-        await x.response.send_message('You responded with "I am ready"', ephemeral=True)
+        weight = {"otterpaw": 0, "elkbarrow": 0}
+        print(weight)
+        current_question = 1
+        while current_question <= 4:
+            weight, message = await self.questions(user, message, current_question, weight)
+            print(weight)
+            if weight is None or message is None:
+                return
+            current_question += 1
 
-        # send the first question and await reaction, add weights
-        # send the second question and await reaction, add weights
-        # send the third question and await reaction, add weights
-        # send the fourth question and await reaction, add weights
+        # get the final weight from number of members in the houses
         # send the closing embed guiding user back to server_guide channel
         # return the weighed results
+
+    async def questions(self, user: disnake.User, message: disnake.Message, question_num: int, weight: dict):
+        """
+        Sends the first question to the user and returns the weighed result.
+
+        :param user: the user object.
+        :param message: the message object.
+        :param question_num: the current question number.
+        :param weight: the weight dictionary.
+        :return weight: the updated weight dictionary.
+        :return message: the new message object.
+        """
+        await message.delete()
+
+        title = self.content[f'question_{question_num}']['title']
+        description = self.content[f'question_{question_num}']['desc']
+        embed = await self.default_embed(title, description, self.blue)
+        embed.set_image(url="https://disnake.dev/assets/disnake-thin-banner.png")
+        components = [
+            disnake.ui.Button(label='Option 1',
+                              style=disnake.ButtonStyle.secondary,
+                              custom_id="option_1"),
+            disnake.ui.Button(label='Option 2',
+                              style=disnake.ButtonStyle.secondary,
+                              custom_id="option_2"),
+        ]
+        message = await user.send(embed=embed, components=components)
+
+        def check_options(x: disnake.MessageInteraction):
+            return x.user == user and x.component.custom_id == "option_1" or x.component.custom_id == "option_2"
+
+        try:
+            x = await self.bot.wait_for('button_click', timeout=60, check=check_options)
+        except asyncio.TimeoutError:
+            return await self.timeout_error_message(user, message)
+
+        option = x.component.custom_id
+        if option == "option_1":
+            weight['otterpaw'] = weight['otterpaw'] + 1
+        else:
+            weight['elkbarrow'] = weight['elkbarrow'] + 1
+        return weight, message
+
+    async def timeout_error_message(self, user: disnake.User, message: disnake.Message):
+        """
+        Sends a customised timeout error message when user does not respond within the timeframe.
+
+        :param user: the user object.
+        :param message: the message object.
+        """
+        await message.delete()
+        title = self.content['timeout_error_message']['title']
+        description = self.content['timeout_error_message']['desc']
+        embed = await self.default_embed(title, description, self.dark_blue)
+
+        await user.send(embed=embed)
+
+    @staticmethod
+    async def default_embed(title: str, desc: str, colour: disnake.Colour):
+        """
+        Returns a default embed template.
+
+        :param title: the title string.
+        :param desc: the description string.
+        :param colour: the colour object.
+        :return embed: the embed object.
+        """
+        embed = disnake.Embed(
+            title=title,
+            description=desc,
+            colour=colour
+        )
+        return embed
 
 
 def setup(bot: commands.Bot):
