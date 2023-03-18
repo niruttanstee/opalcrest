@@ -2,8 +2,11 @@ import asyncio
 
 import disnake
 from disnake.ext import commands
+from connect_db import db_client
+from logger import log
 
 import json
+
 
 
 class HouseSort(commands.Cog):
@@ -16,6 +19,11 @@ class HouseSort(commands.Cog):
 
         with open('./content/house_sort.json', 'r') as f:
             self.content = json.load(f)
+
+        client = await db_client()
+        db = client["opalcrest"]
+        self.house_collection = db.house
+        self.user_collection = db.user
 
     # parent command
     @commands.slash_command()
@@ -60,8 +68,12 @@ class HouseSort(commands.Cog):
         )
         await inter.response.send_message(embed=embed, ephemeral=True)
 
-        # Send a story-introduction dm
-        weights = await self.dm_interaction(user)
+        # Send the dm interactions and get the weights
+        final_weight = await self.dm_interaction(user)
+
+        # sort the user using the weights into the house & embed
+        # update the user into the database
+        # update the house total in the database
 
     async def dm_interaction(self, user: disnake.User):
         """
@@ -100,9 +112,20 @@ class HouseSort(commands.Cog):
                 return
             current_question += 1
 
-        # get the final weight from number of members in the houses
-        # send the closing embed guiding user back to server_guide channel
-        # return the weighed results
+        # fetch house population and calculate the final weight
+        otterpaw_pop = self.house_collection.find_one({"house_name": "otterpaw"})
+        elkbarrow_pop = self.house_collection.fine_one({"house_name": "elkbarrow"})
+
+        otterpaw_pop = otterpaw_pop["population"]
+        elkbarrow_pop = elkbarrow_pop["population"]
+
+        if elkbarrow_pop > otterpaw_pop:
+            weight["otterpaw"] = weight["otterpaw"] + 1
+        elif otterpaw_pop > elkbarrow_pop:
+            weight["elkbarrow"] = weight["elkbarrow"] + 1
+
+        await message.delete()
+        return weight
 
     async def questions(self, user: disnake.User, message: disnake.Message, question_num: int, weight: dict):
         """
