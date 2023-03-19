@@ -60,6 +60,7 @@ class HouseSort(commands.Cog):
         :param inter: the message interaction object.
         :return:
         """
+        await inter.defer(ephemeral=True)
         user = inter.user
         # filter out and process only the button we intend
         if inter.component.custom_id != "house_sort":
@@ -68,9 +69,9 @@ class HouseSort(commands.Cog):
         # let user know to check their dm
         embed = disnake.Embed(
             description="Continue your story within your DMs.",
-            colour=disnake.Colour.blue()
+            colour=self.blue
         )
-        await inter.response.send_message(embed=embed, ephemeral=True)
+        await inter.followup.send(embed=embed, ephemeral=True)
 
         # send the dm interactions and get the weights
         final_weight = await self.dm_interaction(user)
