@@ -8,17 +8,31 @@
     "title": "q1",
     "desc": "q1"
   },
-    "question_2": {
-    "title": "q2",
-    "desc": "q2"
+  "question_2": {
+  "title": "q2",
+  "desc": "q2"
   },
-    "question_3": {
-    "title": "q3",
-    "desc": "q3"
+  "question_3": {
+  "title": "q3",
+  "desc": "q3"
   },
-    "question_4": {
-    "title": "q4",
-    "desc": "q4"
+  "question_4": {
+  "title": "q4",
+  "desc": "q4"
+  },
+  "pre_sort": {
+    "title": "presort",
+    "desc": "presort"
+  },
+  "sort": {
+    "otterpaw": {
+      "title": "otterpaw",
+      "desc": "sorted"
+    },
+    "elkbarrow": {
+      "title": "elkbarrow",
+      "desc": "sorted"
+    }
   },
   "timeout_error_message": {
     "title": "The blued book glow fades",
