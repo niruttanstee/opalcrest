@@ -1,6 +1,8 @@
 import disnake
 from disnake.ext import commands
 from connect_db import db_client
+from cogs.house_sort import HouseSort
+from cogs.role import Role
 
 import logger
 
@@ -16,6 +18,7 @@ class User(commands.Cog):
         client = db_client()
         db = client["opalcrest"]
         self.user_collection = db.user
+        self.house_collection = db.house
 
     # parent command
     @commands.slash_command()
@@ -43,13 +46,14 @@ class User(commands.Cog):
                 colour=self.red
             )
             await inter.followup.send(embed=embed, ephemeral=True)
-            return
+        else:
+            embed = disnake.Embed(
+                description=f"<@{user.id}> was deleted.",
+                colour=self.green
+            )
+            await inter.followup.send(embed=embed, ephemeral=True)
 
-        embed = disnake.Embed(
-            description=f"<@{user.id}> was deleted.",
-            colour=self.green
-        )
-        await inter.followup.send(embed=embed, ephemeral=True)
+        await HouseSort.update_house_pop(self)
 
 
 def setup(bot: commands.Bot):

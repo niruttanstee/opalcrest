@@ -5,6 +5,7 @@ import random
 import disnake
 from disnake.ext import commands
 from connect_db import db_client
+from cogs.role import Role
 from logger import log
 
 import json
@@ -18,8 +19,13 @@ class HouseSort(commands.Cog):
 
         self.blue = disnake.Colour.blue()
         self.dark_blue = disnake.Colour.dark_blue()
+        self.red = disnake.Colour.red()
         self.otterpaw_colour = disnake.Colour.from_rgb(136, 67, 242)
         self.elkbarrow_colour = disnake.Colour.from_rgb(249, 211, 113)
+        self.otterpaw_role = 1087146529959198861
+        self.elkbarrow_role = 1087146748465659986
+        self.otterpaw_common_room = 1087148966325534882
+        self.elkbarrow_common_room = 1087149068280664095
 
         with open('./content/house_sort.json', 'r') as f:
             self.content = json.load(f)
@@ -60,11 +66,36 @@ class HouseSort(commands.Cog):
         :param inter: the message interaction object.
         :return:
         """
-        await inter.defer(ephemeral=True)
+        await inter.response.defer(ephemeral=True)
+        guild = inter.guild
         user = inter.user
         # filter out and process only the button we intend
         if inter.component.custom_id != "house_sort":
             return
+
+        # process only users without a house
+        user_profile = self.user_collection.find_one({"user_id": f"{user.id}"})
+        if user_profile is not None:
+            embed = disnake.Embed(
+                description="You have already completed, or currently doing **Chapter 1**.",
+                colour=self.red
+            )
+            await inter.followup.send(embed=embed, ephemeral=True)
+            return
+
+        await log(__name__, "Opalcrest", user.name, "requests to be sorted into a house")
+
+        # check if user already doing the chapter
+        doing_chapter = self.user_collection.find_one({"user_id": f"{user.id}"})
+        if doing_chapter is not None:
+            embed = disnake.Embed(
+                description="Please continue **Chapter 1** in your dms.",
+                colour=self.red
+            )
+            await inter.followup.send(embed=embed, ephemeral=True)
+            return
+
+        self.user_collection.insert_one({"user_id": f"{user.id}"})
 
         # let user know to check their dm
         embed = disnake.Embed(
@@ -75,18 +106,22 @@ class HouseSort(commands.Cog):
 
         # send the dm interactions and get the weights
         final_weight = await self.dm_interaction(user)
+        if final_weight is None:
+            return
 
         # pre-sort embed
         title = self.content['pre_sort']['title']
         description = self.content['pre_sort']['desc']
-        embed = await self.default_embed()
+        embed = await self.default_embed(title, description, self.blue)
+        embed.set_image(url="https://disnake.dev/assets/disnake-thin-banner.png")
         message = await user.send(embed=embed)
-        await message.delete(20)
+        await asyncio.sleep(25)
+        await message.delete()
 
         # sort embed
-        status = await self.sort(user, final_weight)
+        status = await self.sort(guild, user, final_weight)
         if status is True:
-            await log(__name__, "Opalcrest", user.name, "sorted into house")
+            await log(__name__, "Opalcrest", user.name, "sorted into a house")
         else:
             await log(__name__, "Opalcrest", user.name, "FAILED: to be sorted into house")
 
@@ -110,16 +145,20 @@ class HouseSort(commands.Cog):
         message = await user.send(embed=embed, components=components)
 
         def check_dm_intro(x: disnake.MessageInteraction):
-            return x.user == user and x.component.custom_id == "accept_introduction"
+            return x.user == user and message.channel == user.dm_channel \
+                and x.component.custom_id == "accept_introduction"
 
         try:
             x = await self.bot.wait_for('button_click', timeout=60, check=check_dm_intro)
         except asyncio.TimeoutError:
+            self.user_collection.delete_one({"user_id": f"{user.id}"})
             await message.delete()
             title = self.content['timeout_error_message']['title']
             description = self.content['timeout_error_message']['desc']
             embed = await self.default_embed(title, description, self.dark_blue)
-            return await user.send(embed=embed)
+            await user.send(embed=embed)
+            await log(__name__, "Opalcrest", user.name, "timed out")
+            return
 
         weight = {"otterpaw": 0, "elkbarrow": 0}
         current_question = 1
@@ -160,6 +199,15 @@ class HouseSort(commands.Cog):
         title = self.content[f'question_{question_num}']['title']
         description = self.content[f'question_{question_num}']['desc']
         embed = await self.default_embed(title, description, self.blue)
+
+        field_1_title = self.content[f'question_{question_num}']['field_1']['title']
+        field_1_desc = self.content[f'question_{question_num}']['field_1']['desc']
+
+        field_2_title = self.content[f'question_{question_num}']['field_2']['title']
+        field_2_desc = self.content[f'question_{question_num}']['field_2']['desc']
+
+        embed.add_field(field_1_title, field_1_desc, inline=True)
+        embed.add_field(field_2_title, field_2_desc, inline=True)
         embed.set_image(url="https://disnake.dev/assets/disnake-thin-banner.png")
         components = [
             disnake.ui.Button(label='Option 1',
@@ -172,16 +220,20 @@ class HouseSort(commands.Cog):
         message = await user.send(embed=embed, components=components)
 
         def check_options(x: disnake.MessageInteraction):
-            return x.user == user and x.component.custom_id == "option_1" or x.component.custom_id == "option_2"
+            return (x.user == user and message.channel == user.dm_channel and x.component.custom_id == "option_1") \
+                or (x.user == user and message.channel == user.dm_channel and x.component.custom_id == "option_2")
 
         try:
-            x = await self.bot.wait_for('button_click', timeout=60, check=check_options)
+            x = await self.bot.wait_for('button_click', timeout=120, check=check_options)
         except asyncio.TimeoutError:
+            self.user_collection.delete_one({"user_id": f"{user.id}"})
             await message.delete()
             title = self.content['timeout_error_message']['title']
             description = self.content['timeout_error_message']['desc']
             embed = await self.default_embed(title, description, self.dark_blue)
-            return await user.send(embed=embed)
+            await user.send(embed=embed)
+            await log(__name__, "Opalcrest", user.name, "timed out")
+            return None, None
 
         option = x.component.custom_id
         if option == "option_1":
@@ -190,7 +242,7 @@ class HouseSort(commands.Cog):
             weight['elkbarrow'] = weight['elkbarrow'] + 1
         return weight, message
 
-    async def sort(self, user: disnake.User, weight: dict):
+    async def sort(self, guild: disnake.Guild, user: disnake.User, weight: dict):
         """
         Sorts user into the house according to the weight.
 
@@ -198,6 +250,7 @@ class HouseSort(commands.Cog):
         if True, then user has been sorted.
         if False, then user has not been sorted.
 
+        :param guild: the guild object to fetch the role.
         :param user: the user object.
         :param weight: the weight dictionary.
         :return: boolean.
@@ -206,7 +259,6 @@ class HouseSort(commands.Cog):
         elkbarrow_weight = weight["elkbarrow"]
 
         query = {
-            "user_id": f"{user.id}",
             "house": "",
             "coins": 0,
             "house_points": 0
@@ -216,24 +268,26 @@ class HouseSort(commands.Cog):
             # sort into otterpaw
             query["house"] = "otterpaw"
             try:
-                self.user_collection.insert_one(query)
+                self.user_collection.update_one({"user_id": f"{user.id}"}, {"$set": query}, upsert=True)
             except pymongo.errors.Any:
                 return False
             title = self.content["sort"]["otterpaw"]["title"]
             desc = self.content["sort"]["otterpaw"]["desc"]
             embed = await self.default_embed(title, desc, self.otterpaw_colour)
+            embed.set_image(url="https://disnake.dev/assets/disnake-thin-banner.png")
             await user.send(embed=embed)
 
         elif elkbarrow_weight > otterpaw_weight:
             # sort into elkbarrow
             query["house"] = "elkbarrow"
             try:
-                self.user_collection.insert_one(query)
+                self.user_collection.update_one({"user_id": f"{user.id}"}, {"$set": query}, upsert=True)
             except pymongo.errors.Any:
                 return False
             title = self.content["sort"]["elkbarrow"]["title"]
             desc = self.content["sort"]["elkbarrow"]["desc"]
             embed = await self.default_embed(title, desc, self.elkbarrow_colour)
+            embed.set_image(url="https://disnake.dev/assets/disnake-thin-banner.png")
             await user.send(embed=embed)
 
         else:
@@ -241,7 +295,7 @@ class HouseSort(commands.Cog):
             choice = random.choice(["otterpaw", "elkbarrow"])
             query["house"] = choice
             try:
-                self.user_collection.insert_one(query)
+                self.user_collection.update_one({"user_id": f"{user.id}"}, {"$set": query}, upsert=True)
             except pymongo.errors.Any:
                 return False
             title = self.content["sort"][f"{choice}"]["title"]
@@ -249,14 +303,44 @@ class HouseSort(commands.Cog):
 
             if choice is "otterpaw":
                 colour = self.otterpaw_colour
+                image = "https://disnake.dev/assets/disnake-thin-banner.png"
             else:
                 colour = self.elkbarrow_colour
+                image = "https://disnake.dev/assets/disnake-thin-banner.png"
             embed = await self.default_embed(title, desc, colour)
+            embed.set_image(url=image)
             await user.send(embed=embed)
+
+        # give house role to user and announce in common rooms
+        desc = f"<@{user.id}> is now part of this illustrious house. Please give them a warm welcome!"
+
+        if query["house"] is "otterpaw":
+            role = guild.get_role(self.otterpaw_role)
+            channel = self.otterpaw_common_room
+            embed = disnake.Embed(
+                description=desc,
+                colour=self.otterpaw_colour
+            )
+        else:
+            role = guild.get_role(self.elkbarrow_role)
+            channel = self.elkbarrow_common_room
+            embed = disnake.Embed(
+                description=desc,
+                colour=self.elkbarrow_colour
+            )
+        status = await Role.give_in_sys(role, user)
+        if status is True:
+            pass
+        else:
+            await log(__name__, "Opalcrest", user.name, "FAILED: to receive house role")
+
+        # announce user in common rooms
+        channel = guild.get_channel(channel)
+        await channel.send(embed=embed)
 
         status = await self.update_house_pop()
         if status is True:
-            await log(__name__, "Opalcrest", "system", "updated house population")
+            pass
         else:
             await log(__name__, "Opalcrest", "system", "FAILED: to update house population")
 
@@ -276,8 +360,6 @@ class HouseSort(commands.Cog):
         elkbarrow_pop = self.user_collection.find({"house": "elkbarrow"})
         otterpaw_pop = len(list(otterpaw_pop))
         elkbarrow_pop = len(list(elkbarrow_pop))
-
-        print(otterpaw_pop, elkbarrow_pop)
 
         query_0 = {"house_name": "otterpaw"}
         population_query_0 = {"population": otterpaw_pop}
