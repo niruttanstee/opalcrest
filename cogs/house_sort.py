@@ -6,6 +6,7 @@ import disnake
 from disnake.ext import commands
 from connect_db import db_client
 from cogs.role import Role
+from cogs.house import House
 from logger import log
 
 import json
@@ -27,7 +28,7 @@ class HouseSort(commands.Cog):
         self.otterpaw_common_room = 1087148966325534882
         self.elkbarrow_common_room = 1087149068280664095
 
-        with open('./content/house_sort.json', 'r') as f:
+        with open("./content/house_sort.json", 'r') as f:
             self.content = json.load(f)
 
         client = db_client()
@@ -301,7 +302,7 @@ class HouseSort(commands.Cog):
             title = self.content["sort"][f"{choice}"]["title"]
             desc = self.content["sort"][f"{choice}"]["desc"]
 
-            if choice is "otterpaw":
+            if choice == "otterpaw":
                 colour = self.otterpaw_colour
                 image = "https://disnake.dev/assets/disnake-thin-banner.png"
             else:
@@ -315,7 +316,7 @@ class HouseSort(commands.Cog):
         desc = f"<@{user.id}> is now part of this illustrious house. Please give them a warm welcome!"
         house = query["house"]
 
-        if house is "otterpaw":
+        if house == "otterpaw":
             role = guild.get_role(self.otterpaw_role)
             channel = self.otterpaw_common_room
             embed = disnake.Embed(
@@ -329,7 +330,7 @@ class HouseSort(commands.Cog):
                 description=desc,
                 colour=self.elkbarrow_colour
             )
-        status = await Role.give_in_sys(role, user)
+        status = await Role.give_role(role, user)
         if status is False:
             await log(__name__, "Opalcrest", user.name, "FAILED: to receive house role")
 
@@ -337,38 +338,11 @@ class HouseSort(commands.Cog):
         channel = guild.get_channel(channel)
         await channel.send(embed=embed)
 
-        status = await self.update_house_pop()
+        status = await House.update_house_pop(self)
         if status is False:
             await log(__name__, "Opalcrest", "system", "FAILED: to update house population")
 
         return house, True
-
-    async def update_house_pop(self):
-        """
-        Updates the house population in the database.
-
-        Returns boolean status:
-        if True, the house has been updated.
-        if False, the house has not been updated.
-
-        :return: boolean.
-        """
-        otterpaw_pop = self.user_collection.find({"house": "otterpaw"})
-        elkbarrow_pop = self.user_collection.find({"house": "elkbarrow"})
-        otterpaw_pop = len(list(otterpaw_pop))
-        elkbarrow_pop = len(list(elkbarrow_pop))
-
-        query_0 = {"house_name": "otterpaw"}
-        population_query_0 = {"population": otterpaw_pop}
-        query_1 = {"house_name": "elkbarrow"}
-        population_query_1 = {"population": elkbarrow_pop}
-
-        try:
-            self.house_collection.update_one(query_0, {"$set": population_query_0}, upsert=True)
-            self.house_collection.update_one(query_1, {"$set": population_query_1}, upsert=True)
-        except pymongo.errors.Any:
-            return False
-        return True
 
     @staticmethod
     async def default_embed(title: str, desc: str, colour: disnake.Colour):

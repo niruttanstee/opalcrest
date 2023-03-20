@@ -13,7 +13,7 @@
     },
     "field_2": {
       "title": "Option 2",
-      "desc": "Steadily approach the boar and try to communicate with it."
+      "desc": "Steadily and un-threateningly approach the boar and try to communicate with it."
     }
   },
   "question_2": {
@@ -21,11 +21,11 @@
     "desc": "\"After you did the last action. You continue walking along the slightly pebbled path. You hear something behind you. You turn around. To your surprise, the little boar trots towards you. You continue walking cautiously, but the little boar follows you as it makes miniature squeaky sounds.\"",
     "field_1": {
       "title": "Option 1",
-      "desc": "Stop on the path. Neal down and hope that the boar comes closer to you."
+      "desc": "Continue walking. You are constantly being cautious of where the boar is."
     },
     "field_2": {
       "title": "Option 2",
-      "desc": "Start running and hope that the boar follows you."
+      "desc": "Stop on the path. Neal down and hope that the boar comes closer to you."
     }
   },
   "question_3": {
@@ -33,11 +33,11 @@
   "desc": "\"The little boar becomes somewhat of a companion. Whatever you do and wherever you go. It follows. You see bushes with what seem to be heart-shaped leaves. As you wander closer, you also see red berries amongst the leaves. Upon further inspection, the leaves are smaller and more oval than you initially thought.\"",
   "field_1": {
     "title": "Option 1",
-    "desc": "Grab some berries and feed them to your little companion.\n"
+    "desc": "Don't grab the berries to feed your little companion. Because you don't know if its poisonous."
   },
   "field_2": {
     "title": "Option 2",
-    "desc": "Don't grab the berries to feed your little companion."
+    "desc": "Grab some berries and feed them to your little companion. Because you know it isn't poisonous.\n"
   }
   },
   "question_4": {
@@ -49,7 +49,7 @@
   },
   "field_2": {
     "title": "Option 2",
-    "desc": "Stand next to the little boar and rub its back. Letting the bigger boar approach you."
+    "desc": "Stand next to the little boar and rub its back. You seize a non-threatening pose. Letting the bigger boar approach you."
   }
   },
   "pre_sort": {

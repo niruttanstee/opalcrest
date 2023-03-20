@@ -1,7 +1,7 @@
 import disnake
 from disnake.ext import commands
 from connect_db import db_client
-from cogs.house_sort import HouseSort
+from cogs.house import House
 from logger import log
 
 import logger
@@ -55,7 +55,7 @@ class User(commands.Cog):
             await log(__name__, inter.guild.name, inter.user.name, f"deleted {user.name} from database")
             await inter.followup.send(embed=embed, ephemeral=True)
 
-        await HouseSort.update_house_pop(self)
+            await House.update_house_pop(self)
 
 
 def setup(bot: commands.Bot):
