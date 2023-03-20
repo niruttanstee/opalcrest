@@ -25,7 +25,7 @@ class Status(commands.Cog):
         check_latency = int(latency)
 
         if check_latency <= 125:
-            status = "All systems operational"
+            status = "All systems nominal"
             status_colour = disnake.Colour.green()
         elif check_latency > 125 and latency <= 200:
             status = "Experiencing degraded performance"
