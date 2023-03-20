@@ -1,6 +1,7 @@
 import disnake
 from disnake.ext import commands
 from connect_db import db_client
+from logger import log
 
 import logger
 
@@ -42,11 +43,13 @@ class Role(commands.Cog):
                 colour=self.red
             )
             await inter.followup.send(embed=embed, ephemeral=True)
+            await log(__name__, inter.guild.name, inter.user.name, f"FAILED: to give {user.name} the role: {role.name}")
             return
         embed = disnake.Embed(
             description=f"<@&{role.id}> was added to <@{user.id}>.",
             colour=self.green
         )
+        await log(__name__, inter.guild.name, inter.user.name, f"gave {user.name} the role: {role.name}")
         await inter.followup.send(embed=embed, ephemeral=True)
 
     @staticmethod
@@ -64,9 +67,12 @@ class Role(commands.Cog):
         """
         try:
             await user.add_roles(role)
+            await log(__name__, "Opalcrest", "system", f"gave {user.name} the role: {role.name}")
         except disnake.HTTPException:
+            await log(__name__, "Opalcrest", "system", f"FAILED: to give {user.name} the role: {role.name}")
             return False
         return True
+
 
 def setup(bot: commands.Bot):
     bot.add_cog(Role(bot))

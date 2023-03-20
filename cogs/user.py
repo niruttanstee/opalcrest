@@ -2,7 +2,7 @@ import disnake
 from disnake.ext import commands
 from connect_db import db_client
 from cogs.house_sort import HouseSort
-from cogs.role import Role
+from logger import log
 
 import logger
 
@@ -45,12 +45,14 @@ class User(commands.Cog):
                 description=f"<@{user.id}> was not deleted. No user found in database.",
                 colour=self.red
             )
+            await log(__name__, inter.guild.name, inter.user.name, f"FAILED: to delete {user.name} from database")
             await inter.followup.send(embed=embed, ephemeral=True)
         else:
             embed = disnake.Embed(
                 description=f"<@{user.id}> was deleted.",
                 colour=self.green
             )
+            await log(__name__, inter.guild.name, inter.user.name, f"deleted {user.name} from database")
             await inter.followup.send(embed=embed, ephemeral=True)
 
         await HouseSort.update_house_pop(self)

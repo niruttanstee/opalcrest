@@ -119,9 +119,9 @@ class HouseSort(commands.Cog):
         await message.delete()
 
         # sort embed
-        status = await self.sort(guild, user, final_weight)
+        house, status = await self.sort(guild, user, final_weight)
         if status is True:
-            await log(__name__, "Opalcrest", user.name, "sorted into a house")
+            await log(__name__, "Opalcrest", user.name, f"sorted into house {house}")
         else:
             await log(__name__, "Opalcrest", user.name, "FAILED: to be sorted into house")
 
@@ -270,7 +270,7 @@ class HouseSort(commands.Cog):
             try:
                 self.user_collection.update_one({"user_id": f"{user.id}"}, {"$set": query}, upsert=True)
             except pymongo.errors.Any:
-                return False
+                return False, False
             title = self.content["sort"]["otterpaw"]["title"]
             desc = self.content["sort"]["otterpaw"]["desc"]
             embed = await self.default_embed(title, desc, self.otterpaw_colour)
@@ -283,7 +283,7 @@ class HouseSort(commands.Cog):
             try:
                 self.user_collection.update_one({"user_id": f"{user.id}"}, {"$set": query}, upsert=True)
             except pymongo.errors.Any:
-                return False
+                return False, False
             title = self.content["sort"]["elkbarrow"]["title"]
             desc = self.content["sort"]["elkbarrow"]["desc"]
             embed = await self.default_embed(title, desc, self.elkbarrow_colour)
@@ -297,7 +297,7 @@ class HouseSort(commands.Cog):
             try:
                 self.user_collection.update_one({"user_id": f"{user.id}"}, {"$set": query}, upsert=True)
             except pymongo.errors.Any:
-                return False
+                return False, False
             title = self.content["sort"][f"{choice}"]["title"]
             desc = self.content["sort"][f"{choice}"]["desc"]
 
@@ -313,8 +313,9 @@ class HouseSort(commands.Cog):
 
         # give house role to user and announce in common rooms
         desc = f"<@{user.id}> is now part of this illustrious house. Please give them a warm welcome!"
+        house = query["house"]
 
-        if query["house"] is "otterpaw":
+        if house is "otterpaw":
             role = guild.get_role(self.otterpaw_role)
             channel = self.otterpaw_common_room
             embed = disnake.Embed(
@@ -329,9 +330,7 @@ class HouseSort(commands.Cog):
                 colour=self.elkbarrow_colour
             )
         status = await Role.give_in_sys(role, user)
-        if status is True:
-            pass
-        else:
+        if status is False:
             await log(__name__, "Opalcrest", user.name, "FAILED: to receive house role")
 
         # announce user in common rooms
@@ -339,12 +338,10 @@ class HouseSort(commands.Cog):
         await channel.send(embed=embed)
 
         status = await self.update_house_pop()
-        if status is True:
-            pass
-        else:
+        if status is False:
             await log(__name__, "Opalcrest", "system", "FAILED: to update house population")
 
-        return True
+        return house, True
 
     async def update_house_pop(self):
         """
