@@ -5,7 +5,6 @@ from disnake.ext import commands
 from connect_db import db_client
 from logger import log
 
-import logger
 import pymongo
 
 
