@@ -20,7 +20,7 @@ class HouseSort(commands.Cog):
         self.blue = disnake.Colour.blue()
         self.dark_blue = disnake.Colour.dark_blue()
         self.red = disnake.Colour.red()
-        self.otterpaw_colour = disnake.Colour.from_rgb(136, 67, 242)
+        self.otterpaw_colour = disnake.Colour.from_rgb(148, 94, 231)
         self.elkbarrow_colour = disnake.Colour.from_rgb(249, 211, 113)
         self.otterpaw_role = 1087146529959198861
         self.elkbarrow_role = 1087146748465659986
