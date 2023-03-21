@@ -414,10 +414,10 @@ class House(commands.Cog):
             colour=colour
         )
         embed.add_field(name=f"First place",
-                        value=f"<@&{first[2]}> **({first[1]} points)**\n\nㅤ",
+                        value=f"<@&{first[2]}> **({first[1]} points)**\nㅤ",
                         inline=True)
         embed.add_field(name=f"Runner-up",
-                        value=f"<@&{second[2]}> **({second[1]} points)**\n\nㅤ",
+                        value=f"<@&{second[2]}> **({second[1]} points)**\nㅤ",
                         inline=True)
         embed.add_field(name="Recent house activities:",
                         value=activity,
@@ -452,10 +452,10 @@ class House(commands.Cog):
             colour=colour
         )
         embed.add_field(name=f"Draw",
-                        value=f"<@&{first[2]}> **({first[1]} points)**\n\nㅤ",
+                        value=f"<@&{first[2]}> **({first[1]} points)**\nㅤ",
                         inline=True)
         embed.add_field(name=f"Draw",
-                        value=f"<@&{second[2]}> **({second[1]} points)**\n\nㅤ",
+                        value=f"<@&{second[2]}> **({second[1]} points)**\nㅤ",
                         inline=True)
         embed.add_field(name="Recent house activities:",
                         value=activity,
