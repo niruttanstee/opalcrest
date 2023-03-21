@@ -104,8 +104,34 @@ class House(commands.Cog):
         await log(__name__, "Opalcrest", inter.user, f"gave {user} {points} points")
 
     @points.sub_command(description="Remove points from user")
-    async def remove(self, inter):
-        pass
+    async def remove(self, inter: disnake.ApplicationCommandInteraction, user: disnake.User,
+                     points: int = commands.Param(gt=0, lt=100)):
+        """
+        Remove house points from the user.
+
+        :param inter: the interaction object that has called.
+        :param points: the number of points to remove from the user.
+        :param user: the user to remove points from.
+
+        Parameters
+        ----------
+        user: The user to remove the points from
+        points: The number of points to remove
+        """
+        await inter.response.defer(ephemeral=True)
+        status = await self.remove_points(self, user, points)
+        if status is False:
+            desc = f"Failed to remove <@{user.id}> **{points} point(s)**\nUser may not have a house."
+            embed = await self.default_embed(desc, self.red)
+            await inter.followup.send(embed=embed, ephemeral=True)
+            await log(__name__, "Opalcrest", inter.user,
+                      f"FAILED: to remove {user} {points} points. User may not be in house")
+            return
+
+        desc = f"Successfully removed <@{user.id}> **{points} point(s)**"
+        embed = await self.default_embed(desc, self.green)
+        await inter.followup.send(embed=embed, ephemeral=True)
+        await log(__name__, "Opalcrest", inter.user, f"removed {user} {points} points")
 
     @staticmethod
     async def give_points(self, user: disnake.User, points: int):
@@ -122,7 +148,7 @@ class House(commands.Cog):
         user_col = self.user_collection.find_one({"user_id": f"{user.id}"})
 
         if user_col is None:
-            return
+            return False
 
         house_points = user_col["house_points"]
         house_points += points
@@ -136,8 +162,34 @@ class House(commands.Cog):
         return True
 
     @staticmethod
-    async def remove_points():
-        pass
+    async def remove_points(self, user: disnake.User, points: int):
+        """
+        Removes house points from user.
+        True, if successfully given points to user.
+        False, if failed to give points to user.
+
+        :param self: the collection.
+        :param user: the user to remove the points from.
+        :param points: the number of points to remove.
+        :return: the boolean.
+        """
+        user_col = self.user_collection.find_one({"user_id": f"{user.id}"})
+
+        if user_col is None:
+            return False
+
+        house_points = user_col["house_points"]
+        house_points -= points
+        if house_points < 0:
+            house_points = 0
+
+        search_query = {"user_id": f"{user.id}"}
+        update_query = {"house_points": house_points}
+        try:
+            self.user_collection.update_one(search_query, {"$set": update_query}, upsert=True)
+        except pymongo.errors.Any:
+            return False
+        return True
 
     @staticmethod
     async def default_embed(desc: str, colour: disnake.Colour):
