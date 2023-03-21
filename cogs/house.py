@@ -23,6 +23,7 @@ class House(commands.Cog):
         client = db_client()
         db = client["opalcrest"]
         self.house_collection = db.house
+        self.user_collection = db.user
 
     # parent command
     @commands.slash_command()
@@ -38,25 +39,108 @@ class House(commands.Cog):
     @standings.sub_command(description="Posts the house standings message")
     async def post(self, inter: disnake.ApplicationCommandInteraction):
         channel = inter.channel
-        await inter.response.defer(ephemeral=True)
+        # await inter.response.defer(ephemeral=True)
         standings, draw = await self.get_house_standings(self)
         # post standings embed
         if draw:
-            embed = await self.standings_draw_embed(self, standings)
-            await channel.send(embed=embed)
-            await inter.followup.send("Done!", ephemeral=True)
+            embed = await self.standings_draw_embed(self, standings, None)
+            message = await channel.send(embed=embed)
+            # await inter.followup.send("Done!", ephemeral=True)
         else:
-            embed = await self.standings_embed(self, standings)
-            await channel.send(embed=embed)
-            await inter.followup.send("Done!", ephemeral=True)
+            embed = await self.standings_embed(self, standings, None)
+            message = await channel.send(embed=embed)
+            # await inter.followup.send("Done!", ephemeral=True)
 
-        # store standings embed in database
+        # store message in database
+        search_query = {"type": "standings"}
+        standings = self.house_collection.find_one(search_query)
+        if not standings:
+            self.house_collection.insert_one({"type": "standings", "message_id": message.id, "channel_id": channel.id})
+            return
+        update_query = {"message_id": message.id, "channel_id": channel.id}
+        self.house_collection.update_one(search_query, {"$set": update_query}, upsert=True)
+
+    # points subcommand
+    @house.sub_command_group()
+    async def points(self, inter):
+        pass
+
+    @points.sub_command(description="Give points to user")
+    async def give(self, inter: disnake.ApplicationCommandInteraction, user: disnake.User,
+                   points: int = commands.Param(gt=0, lt=100)):
+        """
+        Give poi
+
+        :param inter:
+        :param points:
+        :param user:
+
+        Parameters
+        ----------
+        user: The user to give the points to
+        points: The number of points to give
+        """
+        pass
+
+    @points.sub_command(description="Remove points from user")
+    async def remove(self, inter):
         pass
 
     @staticmethod
-    async def update_post(self):
-        # updates the existing standings embed as a logger of activities
+    async def give_points():
         pass
+
+    @staticmethod
+    async def remove_points():
+        pass
+
+    @staticmethod
+    async def activity(self, guild: disnake.Guild, user: disnake.User, points: int):
+        """
+        Calls the update house.
+        Creates a list of top five most recent activities.
+        Gets the house standings message and update the message.
+
+        :param self:
+        :param guild: the guild objects.
+        :param user: the user object points given to.
+        :param points: the amount of points given to user.
+        """
+        status = await self.update_house(self)
+        if status is not True:
+            return
+
+        user_house = self.user_collection.find_one({"user_id": f"{user.id}"})
+        user_house = user_house["house"]
+
+        house = self.house_collection.find_one({"house_name": user_house})
+        house_id = house["role_id"]
+
+        activity = f"<@&{house_id}> <@{user.id}> has been given **{points} pts**"
+
+        standings = self.house_collection.find_one({"type": "standings"})
+        channel = guild.get_channel(standings["channel_id"])
+        message = await channel.fetch_message(standings["message_id"])
+
+        activities = message.embeds[0].fields[2].value
+        activities = activities.split("\n")
+        if len(activities) > 5:
+            del activities[-1]
+        activities.append(activity)
+        value = ""
+        for activity in activities:
+            if activity == "":
+                continue
+            value = value + activity + "\n"
+
+        # update standings embed
+        standings, draw = await self.get_house_standings(self)
+        if draw:
+            embed = await self.standings_draw_embed(self, standings, value)
+            await message.edit(embed=embed)
+        else:
+            embed = await self.standings_embed(self, standings, value)
+            await message.edit(embed=embed)
 
     @staticmethod
     async def get_house_standings(self):
@@ -71,12 +155,10 @@ class House(commands.Cog):
             "first": {
                 "house_name": "",
                 "points": "",
-                "population": ""
             },
             "second": {
                 "house_name": "",
                 "points": "",
-                "population": ""
             }
         }
         otterpaw = self.house_collection.find_one({"house_name": "otterpaw"})
@@ -85,42 +167,42 @@ class House(commands.Cog):
         if otterpaw["points"] > elkbarrow["points"]:
             standings["first"]["house_name"] = otterpaw["house_name"]
             standings["first"]["points"] = otterpaw["points"]
-            standings["first"]["population"] = otterpaw["population"]
 
             standings["second"]["house_name"] = elkbarrow["house_name"]
             standings["second"]["points"] = elkbarrow["points"]
-            standings["second"]["population"] = elkbarrow["population"]
             return standings, False
 
         elif elkbarrow["points"] > otterpaw["points"]:
             standings["first"]["house_name"] = elkbarrow["house_name"]
             standings["first"]["points"] = elkbarrow["points"]
-            standings["first"]["population"] = elkbarrow["population"]
 
             standings["second"]["house_name"] = otterpaw["house_name"]
             standings["second"]["points"] = otterpaw["points"]
-            standings["second"]["population"] = otterpaw["population"]
             return standings, False
 
         else:
             standings["first"]["house_name"] = otterpaw["house_name"]
             standings["first"]["points"] = otterpaw["points"]
-            standings["first"]["population"] = otterpaw["population"]
 
             standings["second"]["house_name"] = elkbarrow["house_name"]
             standings["second"]["points"] = elkbarrow["points"]
-            standings["second"]["population"] = elkbarrow["population"]
             return standings, True
-
-    # points subcommand
-    @house.sub_command_group()
-    async def points(self, inter):
-        pass
 
     @staticmethod
     async def update_house(self):
-        # updates the house population and points calling the below
-        pass
+        """
+        Calls update house population and update house points together.
+        if True, the house has been updated.
+        if False, the house has not been updated.
+
+        :return: the boolean.
+        """
+        pop = await self.update_house_pop(self)
+        points = await self.update_house_points(self)
+
+        if (pop is False) or (points is False):
+            return False
+        return True
 
     @staticmethod
     async def update_house_pop(self):
@@ -152,18 +234,47 @@ class House(commands.Cog):
 
     @staticmethod
     async def update_house_points(self):
-        # updates the house points
-        pass
+        """
+        Updates the house points in the database.
+
+        Returns boolean status:
+        if True, the house has been updated.
+        if False, the house has not been updated.
+        :return: boolean.
+        """
+        otterpaw_points = 0
+        elkbarrow_points = 0
+        for user in self.user_collection.find({"house": "otterpaw"}):
+            otterpaw_points += user["house_points"]
+
+        for user in self.user_collection.find({"house": "elkbarrow"}):
+            elkbarrow_points += user["house_points"]
+
+        query_0 = {"house_name": "otterpaw"}
+        points_query_0 = {"points": otterpaw_points}
+        query_1 = {"house_name": "elkbarrow"}
+        points_query_1 = {"points": elkbarrow_points}
+
+        try:
+            self.house_collection.update_one(query_0, {"$set": points_query_0}, upsert=True)
+            self.house_collection.update_one(query_1, {"$set": points_query_1}, upsert=True)
+        except pymongo.errors.Any:
+            return False
+        return True
 
     @staticmethod
-    async def standings_embed(self, standings: dict):
+    async def standings_embed(self, standings: dict, activity: str):
         """
         Creates a standings embed and returns it.
 
         :param self: json referencing.
         :param standings: the standing dict.
+        :param activity: the top 5 most recent activities. Otherwise, None.
         :return embed: the embed to return.
         """
+        if activity is None:
+            activity = ""
+
         title = self.content["standings"]["title"]
         desc = self.content["standings"]["desc"]
         url = self.content["standings"]["image"]
@@ -180,25 +291,32 @@ class House(commands.Cog):
             description=desc,
             colour=colour
         )
-        embed.add_field(name=f"(1) {first[0]}",
-                        value=f"{first[1]} points\n{first[2]} members",
+        embed.add_field(name=f"(1) {first[0].title()}",
+                        value=f"{first[1]} points",
                         inline=True)
-        embed.add_field(name=f"(2) {second[0]}",
-                        value=f"{second[1]} points\n{second[2]} members",
+        embed.add_field(name=f"(2) {second[0].title()}",
+                        value=f"{second[1]} points",
                         inline=True)
+        embed.add_field(name="Recent house activities:",
+                        value=activity,
+                        inline=False)
         embed.set_image(url=url)
 
         return embed
 
     @staticmethod
-    async def standings_draw_embed(self, standings: dict):
+    async def standings_draw_embed(self, standings: dict, activity: str):
         """
         Creates a draw standings embed and returns it.
 
         :param self: json referencing.
         :param standings: the standing dict.
+        :param activity: the top 5 most recent activities. Otherwise, None.
         :return embed: the embed to return.
         """
+        if activity is None:
+            activity = ""
+
         title = self.content["standings"]["title"]
         desc = self.content["standings"]["desc"]
         colour = self.blue
@@ -211,12 +329,15 @@ class House(commands.Cog):
             description=desc,
             colour=colour
         )
-        embed.add_field(name=f"(1) {first[0]}",
-                        value=f"{first[1]} points\n{first[2]} members",
+        embed.add_field(name=f"(1) {first[0].title()}",
+                        value=f"**{first[1]} points**",
                         inline=True)
-        embed.add_field(name=f"(1) {second[0]}",
-                        value=f"{second[1]} points\n{second[2]} members",
+        embed.add_field(name=f"(1) {second[0].title()}",
+                        value=f"**{second[1]} points**",
                         inline=True)
+        embed.add_field(name="Recent house activities:",
+                        value=activity,
+                        inline=False)
         embed.set_image(url=url)
         return embed
 
@@ -230,14 +351,12 @@ class House(commands.Cog):
         """
         first_name = standings["first"]["house_name"]
         first_points = standings["first"]["points"]
-        first_pop = standings["first"]["population"]
 
         second_name = standings["second"]["house_name"]
         second_points = standings["second"]["points"]
-        second_pop = standings["second"]["population"]
 
-        first = [first_name, first_points, first_pop]
-        second = [second_name, second_points, second_pop]
+        first = [first_name, first_points]
+        second = [second_name, second_points]
 
         return first, second
 
