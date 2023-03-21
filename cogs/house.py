@@ -13,9 +13,11 @@ class House(commands.Cog):
         self.bot: commands.Bot = bot
         self.red = disnake.Colour.red()
         self.green = disnake.Colour.green()
+        self.blue = disnake.Colour.blue()
         self.otterpaw_colour = disnake.Colour.from_rgb(148, 94, 231)
         self.elkbarrow_colour = disnake.Colour.from_rgb(249, 211, 113)
-        self.blue = disnake.Colour.blue()
+        self.otterpaw_role = 1087146529959198861
+        self.elkbarrow_role = 1087146748465659986
 
         with open("./content/house.json", 'r') as f:
             self.content = json.load(f)
@@ -39,17 +41,17 @@ class House(commands.Cog):
     @standings.sub_command(description="Posts the house standings message")
     async def post(self, inter: disnake.ApplicationCommandInteraction):
         channel = inter.channel
-        # await inter.response.defer(ephemeral=True)
+        await inter.response.defer(ephemeral=True)
         standings, draw = await self.get_house_standings(self)
         # post standings embed
         if draw:
             embed = await self.standings_draw_embed(self, standings, None)
             message = await channel.send(embed=embed)
-            # await inter.followup.send("Done!", ephemeral=True)
+            await inter.followup.send("Done!", ephemeral=True)
         else:
             embed = await self.standings_embed(self, standings, None)
             message = await channel.send(embed=embed)
-            # await inter.followup.send("Done!", ephemeral=True)
+            await inter.followup.send("Done!", ephemeral=True)
 
         # store message in database
         search_query = {"type": "standings"}
@@ -59,6 +61,7 @@ class House(commands.Cog):
             return
         update_query = {"message_id": message.id, "channel_id": channel.id}
         self.house_collection.update_one(search_query, {"$set": update_query}, upsert=True)
+        await log(__name__, "Opalcrest", inter.user, "posted a new house standings embed")
 
     # points subcommand
     @house.sub_command_group()
@@ -69,30 +72,87 @@ class House(commands.Cog):
     async def give(self, inter: disnake.ApplicationCommandInteraction, user: disnake.User,
                    points: int = commands.Param(gt=0, lt=100)):
         """
-        Give poi
+        Give house points to user and updates the standings board.
 
-        :param inter:
-        :param points:
-        :param user:
+        :param inter: the interaction object that has called.
+        :param points: the number of points to give the user.
+        :param user: the user to give points to.
 
         Parameters
         ----------
         user: The user to give the points to
         points: The number of points to give
         """
-        pass
+        await inter.response.defer(ephemeral=True)
+        guild = inter.guild
+
+        status = await self.give_points(self, user, points)
+        if status is False:
+            desc = f"Failed to give <@{user.id}> **{points} point(s)**\nUser may not have a house."
+            embed = await self.default_embed(desc, self.red)
+            await inter.followup.send(embed=embed, ephemeral=True)
+            await log(__name__, "Opalcrest", inter.user,
+                      f"FAILED: to give {user} {points} points. User may not be in house")
+            return
+
+        # update standings board
+        await self.activity(self, guild, user, points)
+
+        desc = f"Successfully given <@{user.id}> **{points} point(s)**"
+        embed = await self.default_embed(desc, self.green)
+        await inter.followup.send(embed=embed, ephemeral=True)
+        await log(__name__, "Opalcrest", inter.user, f"gave {user} {points} points")
 
     @points.sub_command(description="Remove points from user")
     async def remove(self, inter):
         pass
 
     @staticmethod
-    async def give_points():
-        pass
+    async def give_points(self, user: disnake.User, points: int):
+        """
+        Gives house points to user.
+        True, if successfully given points to user.
+        False, if failed to give points to user.
+
+        :param self: the collection.
+        :param user: the user to give the points to.
+        :param points: the number of points to give.
+        :return: the boolean.
+        """
+        user_col = self.user_collection.find_one({"user_id": f"{user.id}"})
+
+        if user_col is None:
+            return
+
+        house_points = user_col["house_points"]
+        house_points += points
+
+        search_query = {"user_id": f"{user.id}"}
+        update_query = {"house_points": house_points}
+        try:
+            self.user_collection.update_one(search_query, {"$set": update_query}, upsert=True)
+        except pymongo.errors.Any:
+            return False
+        return True
 
     @staticmethod
     async def remove_points():
         pass
+
+    @staticmethod
+    async def default_embed(desc: str, colour: disnake.Colour):
+        """
+        Returns a simple description only embed.
+
+        :param desc: the description for the embed.
+        :param colour: the colour object.
+        :return embed: the embed object.
+        """
+        embed = disnake.Embed(
+            description=desc,
+            colour=colour
+        )
+        return embed
 
     @staticmethod
     async def activity(self, guild: disnake.Guild, user: disnake.User, points: int):
@@ -113,10 +173,12 @@ class House(commands.Cog):
         user_house = self.user_collection.find_one({"user_id": f"{user.id}"})
         user_house = user_house["house"]
 
-        house = self.house_collection.find_one({"house_name": user_house})
-        house_id = house["role_id"]
+        if user_house == "otterpaw":
+            house_id = self.otterpaw_role
+        else:
+            house_id = self.elkbarrow_role
 
-        activity = f"<@&{house_id}> <@{user.id}> has been given **{points} pts**"
+        activity = f"<@&{house_id}> <@{user.id}> has been given {points} pts"
 
         standings = self.house_collection.find_one({"type": "standings"})
         channel = guild.get_channel(standings["channel_id"])
@@ -124,9 +186,9 @@ class House(commands.Cog):
 
         activities = message.embeds[0].fields[2].value
         activities = activities.split("\n")
-        if len(activities) > 5:
+        if len(activities) > 4:
             del activities[-1]
-        activities.append(activity)
+        activities.insert(0, activity)
         value = ""
         for activity in activities:
             if activity == "":
@@ -155,10 +217,12 @@ class House(commands.Cog):
             "first": {
                 "house_name": "",
                 "points": "",
+                "role_id": ""
             },
             "second": {
                 "house_name": "",
                 "points": "",
+                "role_id": ""
             }
         }
         otterpaw = self.house_collection.find_one({"house_name": "otterpaw"})
@@ -167,25 +231,31 @@ class House(commands.Cog):
         if otterpaw["points"] > elkbarrow["points"]:
             standings["first"]["house_name"] = otterpaw["house_name"]
             standings["first"]["points"] = otterpaw["points"]
+            standings["first"]["role_id"] = self.otterpaw_role
 
             standings["second"]["house_name"] = elkbarrow["house_name"]
             standings["second"]["points"] = elkbarrow["points"]
+            standings["second"]["role_id"] = self.elkbarrow_role
             return standings, False
 
         elif elkbarrow["points"] > otterpaw["points"]:
             standings["first"]["house_name"] = elkbarrow["house_name"]
             standings["first"]["points"] = elkbarrow["points"]
+            standings["first"]["role_id"] = self.elkbarrow_role
 
             standings["second"]["house_name"] = otterpaw["house_name"]
             standings["second"]["points"] = otterpaw["points"]
+            standings["second"]["role_id"] = self.otterpaw_role
             return standings, False
 
         else:
             standings["first"]["house_name"] = otterpaw["house_name"]
             standings["first"]["points"] = otterpaw["points"]
+            standings["first"]["role_id"] = self.otterpaw_role
 
             standings["second"]["house_name"] = elkbarrow["house_name"]
             standings["second"]["points"] = elkbarrow["points"]
+            standings["second"]["role_id"] = self.elkbarrow_role
             return standings, True
 
     @staticmethod
@@ -291,11 +361,11 @@ class House(commands.Cog):
             description=desc,
             colour=colour
         )
-        embed.add_field(name=f"(1) {first[0].title()}",
-                        value=f"{first[1]} points",
+        embed.add_field(name=f"First place",
+                        value=f"<@&{first[2]}> **({first[1]} points)**",
                         inline=True)
-        embed.add_field(name=f"(2) {second[0].title()}",
-                        value=f"{second[1]} points",
+        embed.add_field(name=f"Runner-up",
+                        value=f"<@&{second[2]}> **({second[1]} points)**",
                         inline=True)
         embed.add_field(name="Recent house activities:",
                         value=activity,
@@ -329,11 +399,11 @@ class House(commands.Cog):
             description=desc,
             colour=colour
         )
-        embed.add_field(name=f"(1) {first[0].title()}",
-                        value=f"**{first[1]} points**",
+        embed.add_field(name=f"Draw",
+                        value=f"<@&{first[2]}> **({first[1]} points)**",
                         inline=True)
-        embed.add_field(name=f"(1) {second[0].title()}",
-                        value=f"**{second[1]} points**",
+        embed.add_field(name=f"Draw",
+                        value=f"<@&{second[2]}> **({second[1]} points)**",
                         inline=True)
         embed.add_field(name="Recent house activities:",
                         value=activity,
@@ -351,12 +421,14 @@ class House(commands.Cog):
         """
         first_name = standings["first"]["house_name"]
         first_points = standings["first"]["points"]
+        first_role_id = standings["first"]["role_id"]
 
         second_name = standings["second"]["house_name"]
         second_points = standings["second"]["points"]
+        second_role_id = standings["second"]["role_id"]
 
-        first = [first_name, first_points]
-        second = [second_name, second_points]
+        first = [first_name, first_points, first_role_id]
+        second = [second_name, second_points, second_role_id]
 
         return first, second
 
