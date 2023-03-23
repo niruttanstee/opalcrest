@@ -414,7 +414,7 @@ class House(commands.Cog):
             colour=colour
         )
         embed.add_field(name=f"First place",
-                        value=f"<@&{first[2]}> **({first[1]} points)**\nㅤ",
+                        value=f"@&{first[2]}> **({first[1]} points)**\nㅤ",
                         inline=True)
         embed.add_field(name=f"Runner-up",
                         value=f"<@&{second[2]}> **({second[1]} points)**\nㅤ",

@@ -35,6 +35,7 @@ class HouseSort(commands.Cog):
         db = client["opalcrest"]
         self.house_collection = db.house
         self.user_collection = db.user
+        self.user_profile_collection = db.user_profile_log
 
     # parent command
     @commands.slash_command()
@@ -109,6 +110,9 @@ class HouseSort(commands.Cog):
         final_weight = await self.dm_interaction(user)
         if final_weight is None:
             return
+
+        # store final_weight records
+        self.user_profile_collection.insert_one({"user_id": f"{user.id}", "weights": final_weight})
 
         # pre-sort embed
         title = self.content['pre_sort']['title']
