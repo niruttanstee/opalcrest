@@ -1,2 +1,2 @@
-# opal crest
- Official Opal Crest Discord Bot
+# Opalcrest
+ An interactive RPG-style Discord bot for the Opalcrest community.
