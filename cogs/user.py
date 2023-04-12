@@ -57,6 +57,5 @@ class User(commands.Cog):
 
             await House.update_house_pop(self)
 
-
 def setup(bot: commands.Bot):
     bot.add_cog(User(bot))
