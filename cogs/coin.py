@@ -24,7 +24,6 @@ class Coin(commands.Cog):
 
         client = db_client()
         db = client["opalcrest"]
-        self.house_collection = db.house
         self.user_collection = db.user
 
     # parent command
@@ -33,37 +32,149 @@ class Coin(commands.Cog):
     async def coin(self, inter):
         pass
 
-    @coin.sub_command(description="Give coins.")
+    @coin.sub_command(description="Give coins to user")
     async def give(self, inter: disnake.ApplicationCommandInteraction, user: disnake.User,
-                   coins: int = commands.Param(gt=0, lt=100)):
+                   amount: int = commands.Param(gt=0, lt=100)):
         """
-        Give coins to a user.
+        Calls the function to give coins to the user.
 
         :param inter: the interaction object.
-        :param coins: the number of coins to give the user.
+        :param amount: the number of coins to give the user.
         :param user: the user to give the coins to.
 
         Parameters
         ----------
         user: The user to give the coins to
-        points: The amount of coins to give
+        amount: The amount of coins to give
         """
         await inter.response.defer(ephemeral=True)
-        guild = inter.guild
-
-        status = await self.give_coins(self, user, coins)
+        status = await self.give_coins(self, user, amount)
         if status is False:
-            desc = f"Failed to give <@{user.id}> **{coins} coin(s)**\nUser may not belong to a house yet."
+            desc = f"Failed to give <@{user.id}> **{amount} coin(s)**\nUser may not belong to a house yet."
             embed = await self.default_embed(desc, self.red)
             await inter.followup.send(embed=embed, ephemeral=True)
             await log(__name__, "Opalcrest", inter.user,
-                      f"FAILED: to give {user} {coins} coins. User may not belong to a house yet")
+                      f"FAILED: to give {user} {amount} coins. User may not belong to a house yet")
             return
 
-        desc = f"Successfully given <@{user.id}> **{coins} coin(s)**"
+        desc = f"Successfully given <@{user.id}> **{amount} coin(s)**"
         embed = await self.default_embed(desc, self.green)
         await inter.followup.send(embed=embed, ephemeral=True)
-        await log(__name__, "Opalcrest", inter.user, f"gave {user} {coins} coins")
+        await log(__name__, "Opalcrest", inter.user, f"gave {user} {amount} coins")
+
+    @coin.sub_command(description="Remove coins from user")
+    async def remove(self, inter: disnake.ApplicationCommandInteraction, user: disnake.User,
+                     amount: int = commands.Param(gt=0, lt=100)):
+        """
+        Calls the function to remove coins from the user.
+
+        :param inter: the interaction object.
+        :param user: the user to remove the coins from.
+        :param amount: the number of coins to remove from the user.
+
+        Parameters
+        ----------
+        user: The user to remove the coins from
+        amount: The amount of coins to remove
+        """
+        await inter.response.defer(ephemeral=True)
+        is_puchase = False
+        status = await self.remove_coins(self, is_puchase, user, amount)
+        if status is False:
+            desc = f"Failed to remove <@{user.id}> **{amount} coin(s)**\nUser maybe not belong to a house yet."
+            embed = await self.default_embed(desc, self.red)
+            await inter.followup.send(embed=embed, ephemeral=True)
+            await log(__name__, "Opalcrest", inter.user,
+                      f"FAILED: to remove {user} {amount} coins. User may not belong to a house yet.")
+            return
+
+        desc = f"Successfully removed **{amount} coin(s)** from <@{user.id}>"
+        embed = await self.default_embed(desc, self.green)
+        await inter.followup.send(embed=embed, ephemeral=True)
+        await log(__name__, "Opalcrest", inter.user, f"removed {amount} coins from {user}")
+
+    @staticmethod
+    async def give_coins(self, user: disnake.User, coins: int):
+        """
+        Give coins to a specified user by updating the amount in the database.
+        Returns True, if function successfully gives coins to the user.
+        Otherwise, return False.
+
+        :param self: the initialised variables.
+        :param user: the user to give the coins to.
+        :param coins: the amount of coins to give.
+        :return: the boolean status.
+        """
+        user_bank = await self.get_coins(self, user)
+        if user_bank is None:
+            return False
+
+        user_bank += coins
+
+        search_query = {"user_id": f"{user.id}"}
+        update_query = {"coins": user_bank}
+        try:
+            self.user_collection.update_one(search_query, {"$set": update_query}, upsert=True)
+        except pymongo.errors.Any:
+            return False
+        return True
+
+    @staticmethod
+    async def remove_coins(self, is_purchase: bool, user: disnake.User, coins: int):
+        """
+        Remove coins from a specified user by updating the amount in the database.
+        If is_admin is False, then it bypasses purchasing rules.
+            Can remove any amount of coins until 0.
+
+        If is_purchase is True, then the removal follows purchasing rules.
+            Cannot remove coins if specified amount is more than user's current.
+
+        Returns True if coins have been removed, otherwise False.
+
+        :param self: the initialisation variables.
+        :param is_purchase: the boolean for following purchasing rule.
+        :param user: the user to remove the coins from.
+        :param coins: the amount of coins to remove from the user.
+        :return: the boolean status.
+        """
+        user_bank = await self.get_coins(self, user)
+        if user_bank is None:
+            return False
+
+        if is_purchase:
+            if coins > user_bank:
+                return False  # User doesn't have enough coins to purchase.
+            user_bank -= coins
+        else:
+            if coins > user_bank:
+                user_bank = 0
+            else:
+                user_bank -= coins
+
+        search_query = {"user_id": f"{user.id}"}
+        update_query = {"coins": user_bank}
+        try:
+            self.user_collection.update_one(search_query, {"$set": update_query}, upsert=True)
+        except pymongo.errors.Any:
+            return False
+        return True
+
+    @staticmethod
+    async def get_coins(self, user: disnake.User):
+        """
+        Gets the amount of coins a user has in their bank.
+        If user is not found, returns None.
+
+        :param self: the initialised variables.
+        :param user: the user to get the amount of coins.
+        :return: amount of coins the user has.
+        """
+        user_col = self.user_collection.find_one({"user_id": f"{user.id}"})
+
+        if user_col is None:
+            return None
+        user_bank = user_col["coins"]
+        return user_bank
 
     @staticmethod
     async def default_embed(desc: str, colour: disnake.Colour):
