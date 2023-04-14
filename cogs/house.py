@@ -145,14 +145,11 @@ class House(commands.Cog):
         :param points: the number of points to give.
         :return: the boolean.
         """
-        user_col = self.user_collection.find_one({"user_id": f"{user.id}"})
+        house_points = await self.get_house_points(self, user)
 
-        if user_col is None:
+        if house_points is None:
             return False
-
-        house_points = user_col["house_points"]
         house_points += points
-
         search_query = {"user_id": f"{user.id}"}
         update_query = {"house_points": house_points}
         try:
@@ -173,16 +170,13 @@ class House(commands.Cog):
         :param points: the number of points to remove.
         :return: the boolean.
         """
-        user_col = self.user_collection.find_one({"user_id": f"{user.id}"})
+        house_points = await self.get_house_points(self, user)
 
-        if user_col is None:
+        if house_points is None:
             return False
-
-        house_points = user_col["house_points"]
         house_points -= points
         if house_points < 0:
             house_points = 0
-
         search_query = {"user_id": f"{user.id}"}
         update_query = {"house_points": house_points}
         try:
@@ -309,6 +303,23 @@ class House(commands.Cog):
             standings["second"]["points"] = elkbarrow["points"]
             standings["second"]["role_id"] = self.elkbarrow_role
             return standings, True
+
+    @staticmethod
+    async def get_house_points(self, user):
+        """
+        Gets the total amount of points from specified user in the database.
+        If user is not in the database, returns None.
+
+        :param self: the initialised variables.
+        :param user: the user to get the house points from.
+        :return: the amount of house points.
+        """
+        points = self.user_collection.find_one({"user_id": f"{user.id}"})
+
+        if points is None:
+            return None
+        points = points["house_points"]
+        return points
 
     @staticmethod
     async def update_house(self):
